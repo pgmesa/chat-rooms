@@ -5,12 +5,12 @@ Program to create secure chats between clients. The server code can be deployed 
 The server code could be deployed for example on an Amazon Web Server, and X people could connect to talk online simultaneously in different private rooms of 2 people size. In concrete, with AWS the host_address in the server should be the private DNS address and the client ip to connect should be the public DNS address.
 
 ## Requirements
-Python >= 3.7
-Intstall my cryptographic PyPI package
+- Python >= 3.7
+- Intstall my cryptographic PyPI package
 ```
 pip install -r requirements.txt
 ```
-I have another brach in this git called 'no-rsa' that doesn't implement RSA encryption and that also doesn't need you to install any external dependency (just move the server.py and client.py file to where you want to use it)
+I have another brach in this git called 'no-rsa' that doesn't implement RSA encryption and that also doesn't need you to install any external dependencies (just move the server.py and client.py file to where you want to use it)
 
 ## Installation
 To make an easy test:
