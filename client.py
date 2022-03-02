@@ -1,7 +1,7 @@
 
 import os
 import json
-import shutil
+import sys
 import socket
 from threading import Thread
 from pathlib import Path
@@ -11,7 +11,7 @@ env_path = dir_/'.env.json'
 
 def config(key) -> any:
     if not os.path.exists(env_path):
-        shutil.copy(dir_/'.env_example.json', env_path)
+        raise Exception(f"Not '.env.json' file in '{dir_}'")
     with open(env_path, 'r') as file:
         env_dict = json.load(file)
     return env_dict[key]
@@ -20,7 +20,8 @@ def config(key) -> any:
 try:
     HOST_ADDRESS = config('HOST_ADDRESS')
     HOST_PORT = config('HOST_PORT')
-    SERVER_PASSWORD = "b"# config('SERVER_PASSWORD')
+    SERVER_PASSWORD = config('SERVER_PASSWORD')
+    NAME = config('NAME')
 except Exception as err:
     print(err)
     exit(1)
@@ -34,12 +35,15 @@ class ChatClient(Thread):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             print(f"Connecting to {HOST_ADDRESS}:{HOST_PORT}")
-            self.client_socket.connect((HOST_ADDRESS, HOST_PORT)) 
+            self.client_socket.connect((HOST_ADDRESS, HOST_PORT))
+            # Send User name
+            self.client_socket.send(NAME.encode('utf-8'))
         except socket.error as err:
             print("[!]", str(err))
             return
         else:
             print("Connection established")
+            
         # Send password
         try:
             self.client_socket.send(SERVER_PASSWORD.encode('utf-8'))
@@ -86,20 +90,24 @@ class ChatClient(Thread):
                 return False
             
             if connection_outcome == SUCCESS:
-                print("[%] Connection Succeed")
+                # Send the user name
+                self.client_socket.sendall(NAME.encode())
+                # Recieve other client name
+                other_client = self.client_socket.recv(1024).decode('utf-8')
+                print(f"[%] Connection Succeed, connected with '{other_client}'")
                 if answer == "1":
                     while True:
-                        msg = str(input('Write your first msg here: '))
+                        msg = str(input(f"=> Write your first msg here to '{other_client}': "))
                         if valid_msg(msg): break
                         print("[!] Can't send void msg")
                     self.client_socket.send(str.encode(msg))   
                 while True:
-                    print("Waiting for friend to respond...")
+                    print(f"Waiting for '{other_client}' to respond...")
                     recv_msg = self.client_socket.recv(1024)
                     if not recv_msg: break
-                    print("Friend says: ", recv_msg.decode('utf-8'))
+                    print(f"+ '{other_client}' says:", recv_msg.decode('utf-8'))
                     while True:
-                        msg = str(input('Write your msg here: '))
+                        msg = str(input(f"=> Write your msg here to '{other_client}': "))
                         if valid_msg(msg): break
                         print("[!] Can't send void msg")
                     self.client_socket.send(str.encode(msg))
@@ -111,7 +119,7 @@ class ChatClient(Thread):
     def close(self):
         print("[%] Closing connection...")
         self.client_socket.close()
-
+       
 client = ChatClient()
 client.start()
 try:
@@ -119,8 +127,7 @@ try:
 except KeyboardInterrupt: pass
 finally:
     print("[%] Closing client...")
-    try:
-        client.close()
-        pid = os.getpid()
-        os.kill(pid,9)
-    except: pass
+    client.close()
+    #sys.stdout = open(os.devnull, 'w')
+    pid = os.getpid()
+    os.kill(pid,9)

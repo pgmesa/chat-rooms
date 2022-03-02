@@ -5,7 +5,6 @@ import copy
 import time
 import json
 import sys
-import shutil
 import socket
 import datetime as dt
 import random, string
@@ -51,7 +50,7 @@ def log(msg:str, nl:bool=True, print_:bool=True):
 
 def config(key) -> any:
     if not os.path.exists(env_path):
-        shutil.copy(dir_/'.env_example.json', env_path)
+        raise Exception(f"Not '.env.json' file in '{dir_}'")
     with open(env_path, 'r') as file:
         env_dict = json.load(file)
     return env_dict[key]
@@ -61,6 +60,7 @@ try:
     HOST_ADDRESS = config('HOST_ADDRESS')
     HOST_PORT = config('HOST_PORT')
     SERVER_PASSWORD = config('SERVER_PASSWORD')
+    NAME = config('NAME')
 except Exception as err:
     log(err)
     exit(1)
@@ -92,10 +92,12 @@ class SocketListener(Thread):
         except socket.error as err:
             log("[!]" + str(err))
         else:
+            log(f"Server '{NAME}' is up and running")
             log("[%] Waiting for conexions...")
             self.server_socket.listen(1)
             while True:
                 client, address = self.server_socket.accept()
+                client_name = client.recv(2048).decode('utf-8')
                 ip = address[0]
                 # Comprobamos si es una ip bloqueada
                 if ip in self.blocked_ips:
@@ -105,7 +107,7 @@ class SocketListener(Thread):
                     if remaining_t < block_ip_time:
                         log(f"Connection Refused '{ip}' is in blocked ips -> '{round(remaining_t, 2)}'s remaining")
                         client.close()
-                        self.update_ips(ip, blocked=True)
+                        self.update_ips(ip, client_name, blocked=True)
                         continue
                     else:
                         self.blocked_ips.pop(ip)
@@ -120,37 +122,40 @@ class SocketListener(Thread):
                         log("Blocking ip due to 3 failed attempts")
                         self.blocked_ips[ip] = time.time()
                         self.ips_that_fail.pop(ip)
-                        self.update_ips(ip, wrong_key=True, blocked=True)
+                        self.update_ips(ip, client_name, wrong_key=True, blocked=True)
                     else:
-                        self.update_ips(ip, wrong_key=True)
+                        self.update_ips(ip, client_name, wrong_key=True)
                     client.send(FAIL.encode())
                     client.close()
                     continue
-                self.update_ips(ip)
+                self.update_ips(ip, client_name)
                 client.send(SUCCESS.encode())
-                log("[%] Connection stablished with -> " + ip + ':' + str(address[1]))
+                log(f"[%] Connection stablished with client '{client_name}' -> " + ip + ':' + str(address[1]))
                 thread = Thread(target=self.threaded_client, args=(client,))
                 self.threads.append(thread)
                 self.num_connections += 1
                 thread.start()
                 self.update_stats()
                 
-    def update_ips(self, ip:str, wrong_key:bool=False, blocked:bool=False):
+    def update_ips(self, ip:str, client_name:str, wrong_key:bool=False, blocked:bool=False):
         self.lock.acquire()
+        ips = {}
         base_dict = {"num-connections": 1, "num-wrong-credentials": 0, "blocked-times": 0}
         if not os.path.exists(ips_path):
-            ips = {ip: base_dict}
+            ips[ip] = {client_name: base_dict}
         else:
             with open(ips_path, 'r') as file:
                 ips = json.load(file)
             if not ip in ips:
-                ips[ip] = base_dict
+                ips[ip] = {client_name: base_dict}
+            if not client_name in ips[ip]:
+                ips[ip][client_name] = base_dict
             else:
-                ips [ip]["num-connections"] += 1
+                ips [ip][client_name]["num-connections"] += 1
         if wrong_key:
-            ips[ip]["num-wrong-credentials"] += 1
+            ips[ip][client_name]["num-wrong-credentials"] += 1
         if blocked:
-            ips[ip]["blocked-times"] += 1
+            ips[ip][client_name]["blocked-times"] += 1
         with open(ips_path, 'w') as file:
             json.dump(ips, file, indent=4)
         self.lock.release()
@@ -207,7 +212,7 @@ class SocketListener(Thread):
         return active_threads
     
     def threaded_client(self, socket_connection):        
-        socket_connection.send(str.encode('Welcome to the Server'))
+        socket_connection.send(str.encode(f"Welcome to the Server '{NAME}'"))
         data = socket_connection.recv(2048)
         if not data:
             log("Wrong client response, finishing conexion")
@@ -270,6 +275,9 @@ class SocketListener(Thread):
         self.active_rooms.append(room_id)
         self.update_stats()
         try:
+            # Enviamos a cada uno el nombre dle otro
+            name1 = socket1.recv(2048); name2 = socket2.recv(2048)
+            socket1.send(name2); socket2.send(name1)
             # Primero habla el que se une a la sala
             while True:
                 # set to True event
@@ -285,7 +293,7 @@ class SocketListener(Thread):
         finally:
             log(f"[!] Closing connection in room '{room_id}'")
             self.active_rooms.remove(room_id)
-            log("Active Chat Rooms: " + len(self.active_rooms))
+            log(f"Active Chat Rooms: {len(self.active_rooms)}")
             socket1.close(); socket2.close()
     
     def close(self):
