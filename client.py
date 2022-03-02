@@ -1,10 +1,14 @@
 
 import os
 import json
-import sys
 import socket
 from threading import Thread
 from pathlib import Path
+
+from crypt_utilities.asymmetric import (
+    generate_rsa_key_pairs, load_pem_private_key, load_pem_public_key, rsa_encrypt, rsa_decrypt,
+    serialize_pem_public_key, serialization
+)
 
 dir_ = Path(os.getcwd()).resolve()
 env_path = dir_/'.env.json'
@@ -26,6 +30,19 @@ except Exception as err:
     print(err)
     exit(1)
 
+# RSA vars
+credentials_dir_path = dir_/'.rsa_key_pair'
+public_key_path = credentials_dir_path/'public_key'
+private_key_path = credentials_dir_path/'private_key'
+if not os.path.exists(credentials_dir_path):
+    os.mkdir(credentials_dir_path)
+    generate_rsa_key_pairs(file_path=credentials_dir_path)
+try:
+    public_key = load_pem_public_key(public_key_path)
+    private_key = load_pem_private_key(private_key_path)
+except Exception as err:
+    print(f"[!] {err}"); exit(1)
+    
 # Communication agreements
 SUCCESS = "0"; FAIL = "1"
 
@@ -37,7 +54,7 @@ class ChatClient(Thread):
             print(f"Connecting to {HOST_ADDRESS}:{HOST_PORT}")
             self.client_socket.connect((HOST_ADDRESS, HOST_PORT))
             # Send User name
-            self.client_socket.send(NAME.encode('utf-8'))
+            self.client_socket.send(NAME.encode())
         except socket.error as err:
             print("[!]", str(err))
             return
@@ -46,7 +63,7 @@ class ChatClient(Thread):
             
         # Send password
         try:
-            self.client_socket.send(SERVER_PASSWORD.encode('utf-8'))
+            self.client_socket.send(SERVER_PASSWORD.encode())
             login_outcome = self.client_socket.recv(1024).decode()
             if login_outcome == FAIL:
                 print("[!] Seems that the password is incorrect, conexion refused")
@@ -55,7 +72,7 @@ class ChatClient(Thread):
                 # Welcome Msg
                 print("Credentials are correct")
                 response = self.client_socket.recv(1024)
-                print(response.decode('utf-8'))
+                print(response.decode())
         except socket.error:
             print("[!] Seems the server blocked this ip due to more than 3 failed attemps to connect with incorrect password")
             return
@@ -70,10 +87,10 @@ class ChatClient(Thread):
                     break
             if answer == "0":
                 self.client_socket.send(str.encode(answer))
-                room_id = self.client_socket.recv(1024).decode('utf-8')
+                room_id = self.client_socket.recv(1024).decode()
                 print(f"Your room-id is: '{room_id}'")
                 print("Waiting for player conexion...")
-                connection_outcome = self.client_socket.recv(1024).decode('utf-8') 
+                connection_outcome = self.client_socket.recv(1024).decode() 
                 self.client_socket.send(SUCCESS.encode())
             if answer == "1":
                 while True:
@@ -83,7 +100,7 @@ class ChatClient(Thread):
                     else:
                         break
                 self.client_socket.send(str.encode(room_id))
-                connection_outcome = self.client_socket.recv(1024).decode('utf-8') 
+                connection_outcome = self.client_socket.recv(1024).decode() 
             
             def valid_msg(msg:str) -> bool:
                 if msg != "": return True
@@ -93,24 +110,33 @@ class ChatClient(Thread):
                 # Send the user name
                 self.client_socket.sendall(NAME.encode())
                 # Recieve other client name
-                other_client = self.client_socket.recv(1024).decode('utf-8')
+                other_client = self.client_socket.recv(1024).decode()
+                # Send the public key
+                pk_dumped:bytes = serialize_pem_public_key(public_key)
+                self.client_socket.sendall(pk_dumped)
+                # Recieve other client public key
+                pk_other_client_dumped = self.client_socket.recv(40960)
+                pk_other_client = serialization.load_pem_public_key(pk_other_client_dumped)
                 print(f"[%] Connection Succeed, connected with '{other_client}'")
                 if answer == "1":
                     while True:
                         msg = str(input(f"=> Write your first msg here to '{other_client}': "))
                         if valid_msg(msg): break
                         print("[!] Can't send void msg")
-                    self.client_socket.send(str.encode(msg))   
+                    encrp_msg = rsa_encrypt(msg.encode(), pk_other_client)
+                    self.client_socket.send(encrp_msg)  
                 while True:
                     print(f"Waiting for '{other_client}' to respond...")
                     recv_msg = self.client_socket.recv(1024)
                     if not recv_msg: break
-                    print(f"+ '{other_client}' says:", recv_msg.decode('utf-8'))
+                    decrp_msg = rsa_decrypt(recv_msg, private_key).decode()
+                    print(f"+ '{other_client}' says:", decrp_msg)
                     while True:
                         msg = str(input(f"=> Write your msg here to '{other_client}': "))
                         if valid_msg(msg): break
                         print("[!] Can't send void msg")
-                    self.client_socket.send(str.encode(msg))
+                    encrp_msg = rsa_encrypt(msg.encode(), pk_other_client)
+                    self.client_socket.send(encrp_msg)  
             elif connection_outcome == FAIL:
                 print("[!] Connection Failed")
         except socket.error as err:

@@ -97,7 +97,7 @@ class SocketListener(Thread):
             self.server_socket.listen(1)
             while True:
                 client, address = self.server_socket.accept()
-                client_name = client.recv(2048).decode('utf-8')
+                client_name = client.recv(2048).decode()
                 ip = address[0]
                 # Comprobamos si es una ip bloqueada
                 if ip in self.blocked_ips:
@@ -112,7 +112,7 @@ class SocketListener(Thread):
                     else:
                         self.blocked_ips.pop(ip)
                 # Esperamos la contraseña
-                password = client.recv(2048).decode('utf-8')
+                password = client.recv(2048).decode()
                 if password != SERVER_PASSWORD:
                     log(f"Connection Refused -> '{ip}', wrong password '{password}'")
                     if ip not in self.ips_that_fail:
@@ -218,7 +218,7 @@ class SocketListener(Thread):
             log("Wrong client response, finishing conexion")
             socket_connection.close()
         else:
-            data = data.decode('utf-8')
+            data = data.decode()
             if data == "0":
                 room_id = self._generate_id()
                 log(f"Creating room with id '{room_id}'")
@@ -263,9 +263,9 @@ class SocketListener(Thread):
             log(err)
         finally:
             self.lock.release()
-        second_connection.sendall(reply.encode('utf-8'))
+        second_connection.sendall(reply.encode())
         if first_connection is not None:
-            first_connection.sendall(reply.encode('utf-8'))
+            first_connection.sendall(reply.encode())
             self.start_chat(room_id, first_connection, second_connection)
            
     def start_chat(self, room_id, socket1, socket2):
@@ -275,9 +275,12 @@ class SocketListener(Thread):
         self.active_rooms.append(room_id)
         self.update_stats()
         try:
-            # Enviamos a cada uno el nombre dle otro
+            # Enviamos a cada uno el nombre del otro
             name1 = socket1.recv(2048); name2 = socket2.recv(2048)
             socket1.send(name2); socket2.send(name1)
+            # Send public key to each client
+            pk1 = socket1.recv(40960); pk2 = socket2.recv(40960)
+            socket1.send(pk2); socket2.send(pk1)
             # Primero habla el que se une a la sala
             while True:
                 # set to True event
@@ -306,6 +309,17 @@ class SocketListener(Thread):
         self.update_stats(reset=True)
         self.server_socket.close()
 
+if "reset" in sys.argv:
+    if os.path.exists(ips_path):
+        os.remove(ips_path)
+    if os.path.exists(stats_path):
+        os.remove(stats_path)
+    if os.path.exists(log_dir_path):
+        files = os.listdir(log_dir_path)
+        for f in files: os.remove(log_dir_path/f)
+        os.rmdir(log_dir_path)
+    exit()
+        
 try:
     sl = SocketListener()
     sl.start()

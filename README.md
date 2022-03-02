@@ -6,11 +6,11 @@ The server code could be deployed for example on an Amazon Web Server, and X peo
 
 ## Requirements
 - Python >= 3.7
-- Intstall my cryptographic PyPI package
+- (Only for the client) Intstall my cryptographic PyPI package for RSA encryption (requirements.txt)
 ```
 pip install -r requirements.txt
 ```
-I have another brach in this git called 'no-rsa' that doesn't implement RSA encryption and that also doesn't need you to install any external dependencies (just move the server.py and client.py file to where you want to use it)
+I have another branch in this git called 'no-rsa' that doesn't implement RSA encryption and that also doesn't need you to install any external dependencies (just move the server.py and client.py file to where you want to use it)
 ```
 git clone --branch no-rsa https://github.com/pgmesa/chat-rooms/tree/no-rsa
 ```
@@ -38,12 +38,12 @@ To deploy the code in a server with the intention to talk to someone over the in
 4. Create the '.env.json' file for the 'client.py' (the password must be the same as the one in the server '.env.json' file)
 5. Tell your friend to do the same as you
 5. Both run the 'client.py' file. One should create a room and the other must connect to that room.
-6. Send msgs and enjoy 
+6. Send msgs and enjoy (All msgs will be encrypted only you and the person on the other side can see it)
 
 ## Start server and Clients
 To start just run the corresponding file:
-- To run the server -> 'python3 server.py' (replace 'python3' with 'py' if you are in Windows)
-- To run the client -> 'python3 client.py' (replace 'python3' with 'py' if you are in Windows)
+- To run the server -> 'python3 server.py' (replace 'python3' with 'py' or 'python' if you are in Windows)
+- To run the client -> 'python3 client.py' (replace 'python3' with 'py' or 'python' if you are in Windows)
 
 ## Statistics of the program
 IPs Info
