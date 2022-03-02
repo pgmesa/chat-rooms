@@ -11,6 +11,9 @@ The server code could be deployed for example on an Amazon Web Server, and X peo
 pip install -r requirements.txt
 ```
 I have another brach in this git called 'no-rsa' that doesn't implement RSA encryption and that also doesn't need you to install any external dependencies (just move the server.py and client.py file to where you want to use it)
+```
+git clone --branch no-rsa https://github.com/pgmesa/chat-rooms/tree/no-rsa
+```
 
 ## Installation
 To make an easy test:
