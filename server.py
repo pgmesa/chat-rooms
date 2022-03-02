@@ -60,7 +60,7 @@ try:
     HOST_ADDRESS = config('HOST_ADDRESS')
     HOST_PORT = config('HOST_PORT')
     SERVER_PASSWORD = config('SERVER_PASSWORD')
-    NAME = config('NAME')
+    NAME = config('SERVER_NAME')
 except Exception as err:
     log(err)
     exit(1)

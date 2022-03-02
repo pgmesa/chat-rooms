@@ -21,7 +21,7 @@ try:
     HOST_ADDRESS = config('HOST_ADDRESS')
     HOST_PORT = config('HOST_PORT')
     SERVER_PASSWORD = config('SERVER_PASSWORD')
-    NAME = config('NAME')
+    NAME = config('USER_NAME')
 except Exception as err:
     print(err)
     exit(1)
