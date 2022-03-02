@@ -20,7 +20,7 @@ To start just run the corresponding file:
 - To run the server -> 'python3 server.py' (replace python3 with py if you are in Windows)
 - To run the client -> 'python3 client.py' (replace python3 with py if you are in Windows)
 
-## Use example
+## Usage example
 
 
 

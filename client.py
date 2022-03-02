@@ -20,7 +20,7 @@ def config(key) -> any:
 try:
     HOST_ADDRESS = config('HOST_ADDRESS')
     HOST_PORT = config('HOST_PORT')
-    SERVER_PASSWORD = config('SERVER_PASSWORD')
+    SERVER_PASSWORD = "b"# config('SERVER_PASSWORD')
 except Exception as err:
     print(err)
     exit(1)
@@ -119,6 +119,8 @@ try:
 except KeyboardInterrupt: pass
 finally:
     print("[%] Closing client...")
-    client.close()
-    pid = os.getpid()
-    os.kill(pid,9)
+    try:
+        client.close()
+        pid = os.getpid()
+        os.kill(pid,9)
+    except: pass

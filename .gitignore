@@ -1,3 +1,5 @@
 .env.json
 __pycache__
 stats.json
+ips.json
+logs/

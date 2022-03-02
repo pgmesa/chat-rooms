@@ -7,12 +7,47 @@ import json
 import sys
 import shutil
 import socket
+import datetime as dt
 import random, string
 from pathlib import Path
 from threading import Thread, Lock, Event
 
 dir_ = Path(os.getcwd()).resolve()
 env_path = dir_/'.env.json'
+
+stats_fname = './stats.json'
+stats_path = dir_/stats_fname
+log_dir = 'logs'
+log_dir_path = dir_/log_dir
+if not os.path.exists(log_dir_path):
+    os.mkdir(log_dir_path)
+
+def _generate_logfname(title:str) -> str:
+    date = _get_date(path_friendly=True)
+    return title + "_" + date
+
+def _get_date(path_friendly:bool=False) -> str:
+    datetime = dt.datetime.now()
+    if path_friendly:
+        date = str(datetime.date())
+        time = str(datetime.time()).replace(':', "-").replace('.', '_')
+        return date+"_"+time
+    else:
+        return str(datetime)
+
+log_fname = _generate_logfname('log')
+
+def log(msg:str, nl:bool=True, print_:bool=True):
+    msg = str(msg)
+    log_path = log_dir_path/log_fname
+    mode = 'a'
+    if not os.path.exists(log_path):
+        mode = 'w'
+    if nl: msg += "\n"
+    with open(log_path, mode) as file:
+        file.write(msg)
+    if print_: 
+        print(msg, end='')
 
 def config(key) -> any:
     if not os.path.exists(env_path):
@@ -27,13 +62,11 @@ try:
     HOST_PORT = config('HOST_PORT')
     SERVER_PASSWORD = config('SERVER_PASSWORD')
 except Exception as err:
-    print(err)
+    log(err)
     exit(1)
-
-stats_fname = './stats.json'
-stats_path = dir_/stats_fname
-log_dir = 'logs'
-log_dir_path = dir_/log_dir
+    
+ips_fname = 'ips.json'
+ips_path = dir_/ips_fname
 
 block_ip_time = 300 # Seconds
 stats_squema = {
@@ -57,9 +90,9 @@ class SocketListener(Thread):
         try:
             self.server_socket.bind((HOST_ADDRESS, HOST_PORT)) 
         except socket.error as err:
-            print("[!]", str(err))
+            log("[!]" + str(err))
         else:
-            print("[%] Waiting for conexions...")
+            log("[%] Waiting for conexions...")
             self.server_socket.listen(1)
             while True:
                 client, address = self.server_socket.accept()
@@ -70,33 +103,58 @@ class SocketListener(Thread):
                     tf = time.time()
                     remaining_t = block_ip_time - (tf - t0)
                     if remaining_t < block_ip_time:
-                        print(f"Connection Refused '{ip}' is in blocked ips -> '{round(remaining_t, 2)}'s remaining")
+                        log(f"Connection Refused '{ip}' is in blocked ips -> '{round(remaining_t, 2)}'s remaining")
                         client.close()
+                        self.update_ips(ip, blocked=True)
                         continue
                     else:
                         self.blocked_ips.pop(ip)
                 # Esperamos la contraseña
                 password = client.recv(2048).decode('utf-8')
                 if password != SERVER_PASSWORD:
-                    print(f"Connection Refused -> '{ip}', wrong password '{password}'")
+                    log(f"Connection Refused -> '{ip}', wrong password '{password}'")
                     if ip not in self.ips_that_fail:
                         self.ips_that_fail[ip] = 0
                     self.ips_that_fail[ip] += 1
                     if self.ips_that_fail[ip] >= 3:
-                        print("Blocking IP due to 3 failed attempts")
+                        log("Blocking ip due to 3 failed attempts")
                         self.blocked_ips[ip] = time.time()
                         self.ips_that_fail.pop(ip)
+                        self.update_ips(ip, wrong_key=True, blocked=True)
+                    else:
+                        self.update_ips(ip, wrong_key=True)
                     client.send(FAIL.encode())
                     client.close()
                     continue
+                self.update_ips(ip)
                 client.send(SUCCESS.encode())
-                print("[%] Connection stablished with ->", ip + ':' + str(address[1]))
+                log("[%] Connection stablished with -> " + ip + ':' + str(address[1]))
                 thread = Thread(target=self.threaded_client, args=(client,))
                 self.threads.append(thread)
                 self.num_connections += 1
                 thread.start()
                 self.update_stats()
                 
+    def update_ips(self, ip:str, wrong_key:bool=False, blocked:bool=False):
+        self.lock.acquire()
+        base_dict = {"num-connections": 1, "num-wrong-credentials": 0, "blocked-times": 0}
+        if not os.path.exists(ips_path):
+            ips = {ip: base_dict}
+        else:
+            with open(ips_path, 'r') as file:
+                ips = json.load(file)
+            if not ip in ips:
+                ips[ip] = base_dict
+            else:
+                ips [ip]["num-connections"] += 1
+        if wrong_key:
+            ips[ip]["num-wrong-credentials"] += 1
+        if blocked:
+            ips[ip]["blocked-times"] += 1
+        with open(ips_path, 'w') as file:
+            json.dump(ips, file, indent=4)
+        self.lock.release()
+        
     def update_stats(self, reset:bool=False, _shutting_thread=False):
         stats = self.load_stats()
         active_threads = self.check_threads(kill_all=reset)
@@ -130,6 +188,7 @@ class SocketListener(Thread):
         return stats
         
     def check_threads(self, kill_all:bool=False) -> int:
+        self.lock.acquire()
         active_threads = 0
         delete_buffer = []
         if kill_all:
@@ -144,23 +203,24 @@ class SocketListener(Thread):
                 delete_buffer.append(t)
         for t in delete_buffer:
             self.threads.remove(t)
+        self.lock.release()
         return active_threads
     
     def threaded_client(self, socket_connection):        
         socket_connection.send(str.encode('Welcome to the Server'))
         data = socket_connection.recv(2048)
         if not data:
-            print("Wrong client response, finishing conexion")
+            log("Wrong client response, finishing conexion")
             socket_connection.close()
         else:
             data = data.decode('utf-8')
             if data == "0":
                 room_id = self._generate_id()
-                print(f"Creating room with id '{room_id}'")
+                log(f"Creating room with id '{room_id}'")
                 self.create_chat(room_id, socket_connection)
             else:
                 room_id = data
-                print(f"Joining room '{room_id}'")
+                log(f"Joining room '{room_id}'")
                 self.establish_clients_connection(room_id, socket_connection)
         self.update_stats(_shutting_thread=True)
         sys.exit()
@@ -185,7 +245,7 @@ class SocketListener(Thread):
                 raise socket.error()
         except socket.error:
             self.rooms.pop(room_id)
-            print(f"Room '{room_id}' canceled")
+            log(f"Room '{room_id}' canceled")
     
     def establish_clients_connection(self, room_id, second_connection):
         first_connection = None; reply = FAIL
@@ -195,7 +255,7 @@ class SocketListener(Thread):
                 first_connection = self.rooms[room_id]
                 reply = SUCCESS
         except Exception as err:
-            print(err)
+            log(err)
         finally:
             self.lock.release()
         second_connection.sendall(reply.encode('utf-8'))
@@ -223,31 +283,31 @@ class SocketListener(Thread):
                 socket2.sendall(recv_msg_from1)
         except socket.error: pass
         finally:
-            print(f"[!] Closing connection in room '{room_id}'")
+            log(f"[!] Closing connection in room '{room_id}'")
             self.active_rooms.remove(room_id)
-            print("Active Chat Rooms:", len(self.active_rooms))
+            log("Active Chat Rooms: " + len(self.active_rooms))
             socket1.close(); socket2.close()
     
     def close(self):
-        print("[%] Closing connection...")
+        log("Stats before closing:")
+        stats = json.dumps(self.load_stats(), indent=4)
+        log(stats)
+        log("[%] Closing connection...")
         # Reseteamos las estadisticas tambien (menos numero de visitas)
         exit_event.set()
         self.update_stats(reset=True)
         self.server_socket.close()
 
-def signal_handler(signum, frame):
-    exit_event.set()
-
 try:
     sl = SocketListener()
     sl.start()
-    print('-> Socket is listening, press any ctrl-c to abort...')
+    log('-> Socket is listening, press any ctrl-c to abort...')
     while sl.is_alive(): pass
 except Exception as err:
-    print(f"[!] {err}")
+    log(f"[!] {err}")
 except KeyboardInterrupt: pass
 finally:
-    print("[%] Closing Server")
+    log("[%] Closing Server")
     sl.close()
     pid = os.getpid()
     os.kill(pid,9)
