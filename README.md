@@ -6,7 +6,11 @@ The server code could be deployed for example on an Amazon Web Server, and X peo
 
 ## Requirements
 Python >= 3.7
-Not external dependencies needed
+Intstall my cryptographic PyPI package
+```
+pip install -r requirements.txt
+```
+I have another brach in this git called 'no-rsa' that doesn't implement RSA encryption and that also doesn't need you to install any external dependency (just move the server.py and client.py file to where you want to use it)
 
 ## Installation
 To make an easy test:
