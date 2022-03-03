@@ -98,6 +98,7 @@ class SocketListener(Thread):
             while True:
                 client, address = self.server_socket.accept()
                 client_name = client.recv(2048).decode()
+                client.send(SUCCESS.encode())
                 ip = address[0]
                 # Comprobamos si es una ip bloqueada
                 if ip in self.blocked_ips:
