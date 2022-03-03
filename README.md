@@ -6,11 +6,11 @@ The server code could be deployed for example on an Amazon Web Server, and X peo
 
 I have prepared other 2 branches 'server' and 'client' with the necessary code and a short README of how to run each one. The idea is to download the code with:
 ```
-git clone --branch server https://github.com/pgmesa/chat-rooms/
+git clone --branch server https://github.com/pgmesa/chat-rooms/ chat-server
 ```
 or 
 ```
-git clone --branch client https://github.com/pgmesa/chat-rooms/
+git clone --branch client https://github.com/pgmesa/chat-rooms/ chat-client
 ```
 and then create your '.env.json' file following the '.env_example.json'. When done, you could send your friends the client configured (e.g. in a .zip file) with the server password and where to connect to establish connection with them. 
 
@@ -19,10 +19,6 @@ and then create your '.env.json' file following the '.env_example.json'. When do
 - (Only for the client) Intstall my cryptographic PyPI package for RSA encryption (requirements.txt)
 ```
 pip install -r requirements.txt
-```
-I have another branch in this git called 'no-rsa' that doesn't implement RSA encryption and that also doesn't need you to install any external dependencies (just move the server.py and client.py file to where you want to use it)
-```
-git clone --branch no-rsa https://github.com/pgmesa/chat-rooms/
 ```
 
 ## Installation
