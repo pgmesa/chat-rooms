@@ -1,3 +1,6 @@
 .env.json
 __pycache__
 .rsa_key_pair/
+logs/
+ips.json
+stats.json
