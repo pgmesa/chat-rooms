@@ -1,6 +1,6 @@
 # Chat Client
 
-Program to create secure chats between clients. The server code can be deployed in a server (or in your computers localhost) and the clients can connect to it, create private rooms and chat with turns (one writes and the other has to wait until the other sends its response).
+Program to create chat rooms between clients. The server code can be deployed in a server (or in your computers localhost) and the clients can connect to it, create private rooms and chat with turns (one writes and the other has to wait until the other sends its response). Sent messages are encryted with RSA.
 
 Link to complete github project -> https://github.com/pgmesa/chat-rooms
 
