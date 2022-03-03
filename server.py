@@ -11,7 +11,7 @@ import random, string
 from pathlib import Path
 from threading import Thread, Lock, Event
 
-dir_ = Path(os.getcwd()).resolve()
+dir_ = Path(__file__).parent.resolve()
 env_path = dir_/'.env.json'
 
 stats_fname = './stats.json'

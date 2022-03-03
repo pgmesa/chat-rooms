@@ -10,7 +10,7 @@ from crypt_utilities.asymmetric import (
     serialize_pem_public_key, serialization
 )
 
-dir_ = Path(os.getcwd()).resolve()
+dir_ = Path(__file__).parent.resolve()
 env_path = dir_/'.env.json'
 
 def config(key) -> any:
