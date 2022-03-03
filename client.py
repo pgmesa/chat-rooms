@@ -55,6 +55,8 @@ class ChatClient(Thread):
             self.client_socket.connect((HOST_ADDRESS, HOST_PORT))
             # Send User name
             self.client_socket.send(NAME.encode())
+            flag = self.client_socket.recv(1024).decode()
+            assert flag == SUCCESS
         except socket.error as err:
             print("[!]", str(err))
             return
