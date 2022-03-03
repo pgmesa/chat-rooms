@@ -4,6 +4,16 @@ Program to create secure chats between clients. The server code can be deployed 
 
 The server code could be deployed for example on an Amazon Web Server, and X people could connect to talk online simultaneously in different private rooms of 2 people size. In concrete, with AWS the host_address in the server should be the private DNS address and the client ip to connect should be the public DNS address.
 
+I have prepared other 2 branches 'server' and 'client' with the necessary code and a short README of how to run each one. The idea is to download the code with:
+```
+git clone --branch server https://github.com/pgmesa/chat-rooms/
+```
+or 
+```
+git clone --branch client https://github.com/pgmesa/chat-rooms/
+```
+and then create your '.env.json' file following the '.env_example.json'. When done, you could send your friends the client configured (e.g. in a .zip file) with the server password and where to connect to establish connection with them. 
+
 ## Requirements
 - Python >= 3.7
 - (Only for the client) Intstall my cryptographic PyPI package for RSA encryption (requirements.txt)
@@ -12,7 +22,7 @@ pip install -r requirements.txt
 ```
 I have another branch in this git called 'no-rsa' that doesn't implement RSA encryption and that also doesn't need you to install any external dependencies (just move the server.py and client.py file to where you want to use it)
 ```
-git clone --branch no-rsa https://github.com/pgmesa/chat-rooms/tree/no-rsa
+git clone --branch no-rsa https://github.com/pgmesa/chat-rooms/
 ```
 
 ## Installation
@@ -32,7 +42,7 @@ To make an easy test:
 4. Send msgs and enjoy 
 
 To deploy the code in a server with the intention to talk to someone over the internet:
-1. Move the 'server.py' file to your online server
+1. Move the 'server.py' file to your online server (AWS, Azure, Google Cloud...)
 2. Create the '.env.json' file in the same directory as the file and change the variables to fit your server (remember to open the server port you specify in the '.env.json' file before you run the program)
 3. Run the 'server.py' file
 4. Create the '.env.json' file for the 'client.py' (the password must be the same as the one in the server '.env.json' file)
