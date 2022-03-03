@@ -7,6 +7,7 @@ The server code could be deployed for example on an Amazon Web Server, and X peo
 Link to complete github project -> https://github.com/pgmesa/chat-rooms
 
 ## Run the server
+- Windows
 ```
 python server.py
 ```
@@ -19,7 +20,7 @@ py server.py
 python3 server.py
 ```
 
-# Reset server files
+## Reset server files
 Deletes './ips.json', './stats.json' and all the logs in './log'
 ```
 python3 server.py reset
